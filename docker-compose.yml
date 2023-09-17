@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  tarantool:
+    container_name: tarantool
+    image: tarantool/tarantool
+    # restart: always
+    # environment:
+    #  POSTGRES_DB: ${DB_NAME}
+    #  POSTGRES_USER: ${DB_USER}
+    #  POSTGRES_PASSWORD: ${DB_PASSWORD}
+    #  PGDATA: "/var/lib/postgresql/data/pgdata"
+    ports:
+      - 3301:3301
+    volumes:
+      # - tarantool-data:/var/lib/tarantool
+      - ./tarantool:/opt/tarantool
+    command: ["tarantool", "/opt/tarantool/init.lua"]
+
+volumes:
+  tarantool-data:
