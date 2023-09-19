@@ -14,9 +14,6 @@ import (
 	"time"
 )
 
-// createCert creates a new certificate/private key pair for the given domains,
-// signed by the parent/parentKey certificate. hoursValid is the duration of
-// the new certificate's validity.
 func createCert(dnsNames []string, parent *x509.Certificate, parentKey crypto.PrivateKey, hoursValid int) (cert []byte, priv []byte) {
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -64,10 +61,6 @@ func createCert(dnsNames []string, parent *x509.Certificate, parentKey crypto.Pr
 	return pemCert, pemKey
 }
 
-// loadX509KeyPair loads a certificate/key pair from files, and unmarshals them
-// into data structures from the x509 package. Note that private key types in Go
-// don't have a shared named interface and use `any` (for backwards
-// compatibility reasons).
 func loadX509KeyPair(certFile, keyFile string) (cert *x509.Certificate, key any, err error) {
 	cf, err := ioutil.ReadFile(certFile)
 	if err != nil {

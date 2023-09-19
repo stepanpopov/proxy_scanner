@@ -1,16 +1,5 @@
 box.cfg {
     listen = '0.0.0.0:3301',
-    --[[replication = {
-        '127.0.0.1:3301',
-        '127.0.0.1:3302',
-    },
-    memtx_dir  = "storage",
-    wal_dir    = "storage",
-    replication_connect_quorum = 1,
-    replicaset_uuid = 'aaaaaaaa-0000-4000-b001-000000000000',
-    instance_uuid = 'aaaaaaaa-0000-4000-a000-000000000011' ]]--
-    -- checkpoint_interval = 2,
-    -- checkpoint_count = 1,
 }
 
 box.schema.user.grant('guest', 'super', nil, nil, {if_not_exists=true}) 
@@ -23,7 +12,7 @@ box.space.proxy:format({
 })
 
 
-box.schema.sequence.create('proxy_id')
+box.schema.sequence.create('proxy_id', { if_not_exists=true })
 
 box.space.proxy:create_index(
     'primary',

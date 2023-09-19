@@ -26,7 +26,7 @@ func main() {
 
 	r.GET("/requests", api.GetAll(conn))
 	r.GET("/requests/*id", api.Get(conn))
-	// r.GET("/repeat/*id", api.Get(conn))
+	r.GET("/repeat/*id", api.Repeat(conn))
 	// r.GET("/scan/*id", api.Get(conn))
 
 	r.Run(":8080")

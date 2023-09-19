@@ -107,8 +107,6 @@ func (p ProxyHandler) handleHTTP(w http.ResponseWriter, r *http.Request) {
 func (p ProxyHandler) handleHTTPS(w http.ResponseWriter, proxyReq *http.Request) {
 	log.Printf("CONNECT requested to %v (from %v)", proxyReq.Host, proxyReq.RemoteAddr)
 
-	// "Hijack" the client connection to get a TCP (or TLS) socket we can read
-	// and write arbitrary data to/from.
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		log.Fatal("http server doesn't support hijacking connection")
@@ -120,32 +118,21 @@ func (p ProxyHandler) handleHTTPS(w http.ResponseWriter, proxyReq *http.Request)
 	}
 	defer clientConn.Close()
 
-	// proxyReq.Host will hold the CONNECT target host, which will typically have
-	// a port - e.g. example.org:443
-	// To generate a fake certificate for example.org, we have to first split off
-	// the host from the port.
 	host, _, err := net.SplitHostPort(proxyReq.Host)
 	if err != nil {
 		log.Fatal("error splitting host/port:", err)
 	}
 
-	// Create a fake TLS certificate for the target host, signed by our CA. The
-	// certificate will be valid for 10 days - this number can be changed.
 	pemCert, pemKey := createCert([]string{host}, p.caCert, p.caKey, 240)
 	tlsCert, err := tls.X509KeyPair(pemCert, pemKey)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Send an HTTP OK response back to the client; this initiates the CONNECT
-	// tunnel. From this point on the client will assume it's connected directly
-	// to the target.
 	if _, err := clientConn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n")); err != nil {
 		log.Fatal("error writing status to client:", err)
 	}
 
-	// Configure a new TLS server, pointing it at the client connection, using
-	// our certificate. This server will now pretend being the target.
 	tlsConfig := &tls.Config{
 		PreferServerCipherSuites: true,
 		CurvePreferences:         []tls.CurveID{tls.X25519, tls.CurveP256},
@@ -156,19 +143,9 @@ func (p ProxyHandler) handleHTTPS(w http.ResponseWriter, proxyReq *http.Request)
 	tlsConn := tls.Server(clientConn, tlsConfig)
 	defer tlsConn.Close()
 
-	// Create a buffered reader for the client connection; this is required to
-	// use http package functions with this connection.
 	connReader := bufio.NewReader(tlsConn)
 
-	// Run the proxy in a loop until the client closes the connection.
 	for {
-		// Read an HTTP request from the client; the request is sent over TLS that
-		// connReader is configured to serve. The read will run a TLS handshake in
-		// the first invocation (we could also call tlsConn.Handshake explicitly
-		// before the loop, but this isn't necessary).
-		// Note that while the client believes it's talking across an encrypted
-		// channel with the target, the proxy gets these requests in "plain text"
-		// because of the MITM setup.
 		r, err := http.ReadRequest(connReader)
 		if err == io.EOF {
 			break
@@ -179,22 +156,16 @@ func (p ProxyHandler) handleHTTPS(w http.ResponseWriter, proxyReq *http.Request)
 			log.Fatal(proxyReq, err)
 		}
 
-		// We can dump the request; log it, modify it...
 		if b, err := httputil.DumpRequest(r, false); err == nil {
 			log.Printf("incoming request:\n%s\n", string(b))
 		}
 
-		// Take the original request and changes its destination to be forwarded
-		// to the target server.
+		copyReq := *r
+
 		changeRequestToTarget(r, proxyReq.Host)
 
-		// Send the request to the target server and log the response.
-		client := http.Client{
-			// Transport: &ForwardProxyTransport{},
-			// CheckRedirect: CheckRedirectDisabler,
-		}
+		client := http.Client{}
 
-		copyReq := *r
 		resp, err := client.Do(r)
 		if err != nil {
 			log.Println("error sending request to target:", err)
@@ -206,7 +177,6 @@ func (p ProxyHandler) handleHTTPS(w http.ResponseWriter, proxyReq *http.Request)
 		defer resp.Body.Close()
 
 		copyResp := *resp
-		// Send the target server's response back to the client.
 		if err := resp.Write(tlsConn); err != nil {
 			log.Println("error writing response back:", err)
 		}

@@ -17,15 +17,12 @@ func copyHeaders(source, dest http.Header) {
 	}
 }
 
-// changeRequestToTarget modifies req to be re-routed to the given target;
-// the target should be taken from the Host of the original tunnel (CONNECT)
-// request.
 func changeRequestToTarget(req *http.Request, targetHost string) {
 	targetUrl := addrToUrl(targetHost)
 	targetUrl.Path = req.URL.Path
 	targetUrl.RawQuery = req.URL.RawQuery
 	req.URL = targetUrl
-	// Make sure this is unset for sending the request through a client
+
 	req.RequestURI = ""
 }
 
@@ -58,6 +55,8 @@ func parseRequest(r http.Request) map[string]any {
 		getParamVals[k] = append(getParamVals[k], values...)
 	}
 	d["get_params"] = getParamVals
+
+	d["host"] = r.Host
 
 	headers := make(http.Header)
 	for k, values := range r.Header {
@@ -92,7 +91,7 @@ func parseRequest(r http.Request) map[string]any {
 func parseResponce(r http.Response) map[string]any {
 	d := make(map[string]any)
 	d["code"] = r.StatusCode
-	
+
 	headers := make(http.Header)
 	for k, values := range r.Header {
 		headers[k] = append(headers[k], values...)
