@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stepanpopov/proxy_scanner/internal/api"
@@ -13,6 +14,7 @@ var (
 )
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	r := gin.Default()
 
 	conn, err := tarantool.Connect(*ttURI, tarantool.Opts{})

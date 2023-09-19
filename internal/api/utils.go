@@ -47,13 +47,28 @@ func makeRequest(d map[string]any) (*http.Request, error) {
 	}
 
 	if _, ok := d["get_params"]; ok {
-		params, ok := d["get_params"].(map[string][]string)
+		params, ok := d["get_params"].(map[any]any)
 		if !ok {
 			return nil, ErrorCastRequest
 		}
-		for p, vList := range params {
+		for pI, vListI := range params {
+			param, ok := pI.(string)
+			if !ok {
+				return nil, ErrorCastRequest
+			}
+
+			vList, ok := vListI.([]any)
+			if !ok {
+				return nil, ErrorCastRequest
+			}
+
 			for _, v := range vList {
-				r.URL.Query().Add(p, v)
+				vStr, ok := v.(string)
+				if !ok {
+					return nil, ErrorCastRequest
+				}
+
+				r.URL.Query().Add(param, vStr)
 			}
 		}
 	}

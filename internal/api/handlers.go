@@ -25,19 +25,22 @@ func (t tntRespMarshall) MarshalJSON() ([]byte, error) {
 }
 
 func (t tntRespMarshall) GetRequest() (*http.Request, error) {
-	data, ok := t.r.Data[0].([]interface{})
+
+	data, ok := t.r.Tuples()[0][0].([]any)[1].(map[any]any)
 	if !ok {
 		return nil, fmt.Errorf("cast error")
 	}
-	data, ok = data[0].([]any)
-	if !ok {
-		return nil, fmt.Errorf("cast error")
+	req := make(map[string]any)
+	for k, v := range data {
+		kStr, ok := k.(string)
+		if !ok {
+			return nil, fmt.Errorf("cast error")
+		}
+
+		req[kStr] = v
 	}
 
-	req, ok := data[1].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("cast error")
-	}
+	log.Print(req)
 
 	return makeRequest(req)
 }
