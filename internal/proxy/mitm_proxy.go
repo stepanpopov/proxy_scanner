@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"syscall"
+
+	"github.com/stepanpopov/proxy_scanner/internal/utils"
 )
 
 func NewProxyHandler(caCertFile, caKeyFile string, tarantool *TarantoolProxy) (*ProxyHandler, error) {
@@ -99,7 +101,22 @@ func (p ProxyHandler) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Println("error writing response back:", err)
 	}
 
-	if err := p.tarantool.insertReqResp(parseRequest(copyReq), parseResponce(copyResp)); err != nil {
+	reqJson, err := jsonEncodeStr(utils.ParseRequest(copyReq))
+	if err != nil {
+		log.Println("failed to convert to json", err)
+		return
+	}
+
+	respJson, err := jsonEncodeStr(utils.ParseResponse(copyResp))
+	if err != nil {
+		log.Println("failed to convert to json", err)
+		return
+	}
+
+	if err := p.tarantool.insertReqResp(
+		reqJson,
+		respJson,
+	); err != nil {
 		log.Println("failed to insert to tarantool: ", err)
 	}
 }
@@ -181,7 +198,22 @@ func (p ProxyHandler) handleHTTPS(w http.ResponseWriter, proxyReq *http.Request)
 			log.Println("error writing response back:", err)
 		}
 
-		if err := p.tarantool.insertReqResp(parseRequest(copyReq), parseResponce(copyResp)); err != nil {
+		reqJson, err := jsonEncodeStr(copyReq)
+		if err != nil {
+			log.Println("failed to convert to json", err)
+			continue
+		}
+
+		respJson, err := jsonEncodeStr(copyResp)
+		if err != nil {
+			log.Println("failed to convert to json", err)
+			continue
+		}
+
+		if err := p.tarantool.insertReqResp(
+			reqJson,
+			respJson,
+		); err != nil {
 			log.Println("failed to insert to tarantool: ", err)
 		}
 	}

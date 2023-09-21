@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	ttURI = flag.String("tt_uri", "localhost:3301", "tarantool uri")
+	ttURI      = flag.String("tt_uri", "localhost:3301", "tarantool uri")
+	listenAddr = flag.String("listen_addr", ":8080", "host:port")
 )
 
 func main() {
@@ -29,9 +30,9 @@ func main() {
 	r.GET("/requests", api.GetAll(conn))
 	r.GET("/requests/*id", api.Get(conn))
 	r.GET("/repeat/*id", api.Repeat(conn))
-	// r.GET("/scan/*id", api.Get(conn))
+	r.GET("/scan/*id", api.Scan(conn))
 
-	r.Run(":8080")
+	r.Run(*listenAddr)
 }
 
 func init() {

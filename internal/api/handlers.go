@@ -1,14 +1,17 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/stepanpopov/proxy_scanner/internal/utils"
 	"github.com/tarantool/go-tarantool/v2"
 )
 
@@ -24,25 +27,27 @@ func (t tntRespMarshall) MarshalJSON() ([]byte, error) {
 	return jsoniter.ConfigCompatibleWithStandardLibrary.Marshal(data[0])
 }
 
-func (t tntRespMarshall) GetRequest() (*http.Request, error) {
-
-	data, ok := t.r.Tuples()[0][0].([]any)[1].(map[any]any)
+func (t tntRespMarshall) GetRequestInfo() (*utils.RequestInfo, error) {
+	jsonStr, ok := t.r.Tuples()[0][0].([]any)[1].(string)
 	if !ok {
 		return nil, fmt.Errorf("cast error")
 	}
-	req := make(map[string]any)
-	for k, v := range data {
-		kStr, ok := k.(string)
-		if !ok {
-			return nil, fmt.Errorf("cast error")
-		}
 
-		req[kStr] = v
+	var ri utils.RequestInfo
+	if err := json.NewDecoder(strings.NewReader(jsonStr)).Decode(&ri); err != nil {
+		return nil, err
 	}
 
-	log.Print(req)
+	return &ri, nil
+}
 
-	return makeRequest(req)
+func (t tntRespMarshall) GetRequest() (*http.Request, error) {
+	ri, err := t.GetRequestInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	return utils.MakeRequest(ri)
 }
 
 func GetAll(conn *tarantool.Connection) gin.HandlerFunc {
@@ -114,5 +119,50 @@ func Repeat(conn *tarantool.Connection) gin.HandlerFunc {
 		}
 
 		c.String(http.StatusOK, string(b))
+	}
+}
+
+func Scan(conn *tarantool.Connection) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id")[1:])
+		if err != nil {
+			c.JSON(http.StatusBadRequest, "invalid id")
+			return
+		}
+
+		obj, err := conn.Call("get_proxy", []interface{}{id})
+		if err != nil {
+			log.Print(err)
+			c.JSON(http.StatusInternalServerError, "failed to get request")
+			return
+		}
+		tntResp := tntRespMarshall{r: obj}
+
+		reqInfo, err := tntResp.GetRequestInfo()
+		if err != nil {
+			log.Print(err)
+			c.JSON(http.StatusInternalServerError, "failed to get request")
+			return
+		}
+
+		reqVuln, err := utils.MakeRequest(makeXXEVuln(reqInfo))
+		if err != nil {
+			log.Print(err)
+			c.JSON(http.StatusInternalServerError, "failed to get vuln request")
+			return
+		}
+
+		repeatedResp, err := doClientRequest(reqVuln)
+		if err != nil {
+			log.Print(err)
+			c.JSON(http.StatusInternalServerError, "failed to send request to repeat")
+			return
+		}
+
+		if checkXXE(repeatedResp) {
+			c.JSON(http.StatusOK, "ITS VuLnArAbLe GO STEAL THEIR CREDS")
+		} else {
+			c.JSON(http.StatusOK, "NoT VuLnArAbLe")
+		}
 	}
 }

@@ -11,5 +11,25 @@ services:
       - ./tarantool:/opt/tarantool
     command: ["tarantool", "/opt/tarantool/init.lua"]
 
+  # api:
+  # build: 
+  #    context: .
+  #    dockerfile: Dockerfile.api
+  #  ports:
+  #    - 8080:8080
+  #  restart: always
+  #  depends_on:
+  #    - tarantool
+
+  # proxy:
+  # build: 
+  #  context: .
+  #  dockerfile: Dockerfile.proxy
+  #  ports:
+  #    - 8000:8000
+  #  restart: always
+  #  depends_on:
+  #    - tarantool
+
 volumes:
   tarantool-data:

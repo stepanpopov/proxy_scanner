@@ -7,5 +7,5 @@
 - docker-compose up
 
 Запуск api:
-- go run ./cmd/api/main.go
+- go run ./cmd/api/main.go -listen_addr 8080
 Запуститься на 8080 порту

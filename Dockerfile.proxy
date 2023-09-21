@@ -1,2 +1,11 @@
 FROM golang:1.20
 
+WORKDIR /app
+COPY . .
+RUN go build -o ./out/app_bin cmd/proxy/main.go
+
+RUN chmod +x ./out/app_bin
+
+EXPOSE 8080/tcp
+
+ENTRYPOINT ["./out/app_bin", "-tt_uri", "tarantool:3301", "-ca_cert_file", "../certs/ca.crt", "-ca_key_file", "../certs/ca.key"]
